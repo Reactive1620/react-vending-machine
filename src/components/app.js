@@ -27,21 +27,23 @@ export default class App extends React.Component {
             activeItemIdx: -1,
             outBoxItemName: '',
             bank: 100,
-            userChange: -1
+            userMoney: 0,
+            userChange: -1,
+            isBuyOk: false
         }
 
+        this.checkBuyRequirements = this.checkBuyRequirements.bind(this);
     }
 
     selectProduct(itemIdx) {
         const activeItem = this.state.items[itemIdx];
-
         // Exit when click on empty item
         if (activeItem.count < 1) return false
 
         // Toogle current active item
-        if (this.state.activeItemIdx === itemIdx) this.setState({ activeItemIdx: -1 });
-        // Set new active item
-        else this.setState({ activeItemIdx: itemIdx });
+        if (this.state.activeItemIdx === itemIdx) this.setState({ activeItemIdx: -1 }, this.checkBuyRequirements) 
+        // Set new active item       
+        else this.setState( { activeItemIdx: itemIdx }, this.checkBuyRequirements );        	
     }
 
     handleOutItemClick() {
@@ -55,35 +57,46 @@ export default class App extends React.Component {
         });
     }
 
+    checkBuyRequirements() {
+    	const idx = this.state.activeItemIdx;
+        const activeItem = this.state.items[idx] ? this.state.items[idx] : null;            
+        const userMoney = this.state.userMoney;
+
+        // Product selected and User money is enough for buy product
+        if (activeItem && 
+        	activeItem.count > 0 &&
+        	activeItem.price < userMoney) {
+        	this.setState({ isBuyOk: true });
+        } else this.setState({ isBuyOk: false });
+    }
+
     pay(e) {
-        if (e.key === 'Enter') {
-            const idx = this.state.activeItemIdx;
-            const activeItem = this.state.items[idx] ? this.state.items[idx] : null;            
-            const userMoney = parseInt(e.target.value);
+    	this.setState({ userMoney: e.target.value }, this.checkBuyRequirements);
+    }
 
-            // Product selected and User money is enough for buy product
-            if (activeItem && activeItem.count > 0 && activeItem.price < userMoney) {
-                // Update product count (decrease selected product count)
-                this.setState({ 
-                    items: this.state.items.map((item, idx)=>{
-                        if (idx === this.state.activeItemIdx) {
-                            var updatedItem = item;
-                            updatedItem.count--;
-                            return updatedItem;
-                        } else return item;
-                    }) 
-                });
-                // Set money to the bank
-                this.setState({ bank: this.state.bank + activeItem.price});
-                // Give the item to a user
-                this.setState({ outBoxItemName: activeItem.name});
-                // Give the change to a user
-                this.setState({ userChange: userMoney - activeItem.price});
+    buy() {
+    	const idx = this.state.activeItemIdx;
+        const activeItem = this.state.items[idx];            
+        const userMoney = this.state.userMoney;
 
-                // Reset money input
-                e.target.value = '';
-            }
-        }
+        // Update product count (decrease selected product count)
+        this.setState({ 
+            items: this.state.items.map((item, idx)=>{
+                if (idx === this.state.activeItemIdx) {
+                    var updatedItem = item;
+                    updatedItem.count--;
+                    return updatedItem;
+                } else return item;
+            }) 
+        });
+        // Set money to the bank
+        this.setState({ bank: this.state.bank + activeItem.price});
+        // Give the item to a user
+        this.setState({ outBoxItemName: activeItem.name});
+        // Give the change to a user
+        this.setState({ userChange: userMoney - activeItem.price});
+        // Reset money input
+        this.setState({ userMoney: 0}, this.checkBuyRequirements);
     }
 
     render() {
@@ -107,7 +120,11 @@ export default class App extends React.Component {
                             <li>Pick up your product and pick up your change</li>         
                         </ol>
                         <div>Put money</div>
-                        <input type="number" className="moneyInput" onKeyPress={this.pay.bind(this)} min="0"/>
+                        <input type="number" className="moneyInput" value={this.state.userMoney} onChange={this.pay.bind(this)} min="0"/>
+                        {this.state.isBuyOk ?
+                        	<button className="buyBtn" onClick={this.buy.bind(this)}>Buy</button> :
+                        	<button className="buyBtn" disabled>Buy</button>
+                    	}
                         {this.state.userChange > 0 && 
                         	<div>
 	                            <div>Pick up your change</div>
